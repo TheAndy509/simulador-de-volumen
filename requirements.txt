@@ -1,0 +1,7 @@
+flask
+numpy
+scipy
+sympy
+pywebview
+pythonnet
+pyinstaller

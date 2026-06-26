@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador 3D — Volumen de Revolución</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="panel">
+  <div>
+    <h1>Volumen de Revolución 3D</h1>
+    <p class="sub">Método disco / anillo · eje X o Y </p>
+  </div>
+
+  <div class="section">
+    <h2>Eje de rotación</h2>
+    <div class="axis-row">
+      <span style="font-size:0.78rem;color:#a0aec0">Rotar alrededor del eje:</span>
+      <button type="button" class="axis-pill active" data-axis="x">X</button>
+      <button type="button" class="axis-pill" data-axis="y">Y</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Método</h2>
+    <div class="tabs">
+      <button type="button" class="tab active" data-m="disk">Disco</button>
+      <button type="button" class="tab" data-m="washer">Anillo (arandela)</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Funciones</h2>
+    <div class="field">
+      <label id="fLabel">R(x) = f(x) — radio exterior</label>
+      <input type="text" id="fIn" value="sqrt(x)" aria-label="Radio exterior f(x)">
+    </div>
+    <div class="field" id="gRow">
+      <label id="gLabel">r(x) = g(x) — radio interior</label>
+      <input type="text" id="gIn" value="x/2" aria-label="Radio interior g(x)">
+    </div>
+  </div>
+
+  <div class="section">
+    <h2 id="intervalLabel">Intervalo en x: [a, b]</h2>
+    <div class="row2">
+      <div class="field"><label for="aIn">a</label><input type="number" id="aIn" value="0" step="0.5"></div>
+      <div class="field"><label for="bIn">b</label><input type="number" id="bIn" value="4" step="0.5"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Visualización</h2>
+    <label for="nSlider">Número de discos/anillos</label>
+    <div class="srow">
+      <input type="range" id="nSlider" min="2" max="80" value="16" aria-label="Número de discos">
+      <span class="sv" id="nVal">16</span>
+    </div>
+    <label class="ck"><input type="checkbox" id="chkSolid" checked> Sólido suave</label>
+    <label class="ck"><input type="checkbox" id="chkDisks" checked> Discos / Anillos</label>
+    <label class="ck"><input type="checkbox" id="chkCurve" checked> Curvas f y g</label>
+    <label class="ck"><input type="checkbox" id="chkAxes"  checked> Ejes y cuadrícula</label>
+  </div>
+
+  <button type="button" id="go">Calcular y Visualizar</button>
+  <div id="errMsg" class="err hidden"></div>
+
+  <div id="info" class="ibox hidden">
+    <h2>Resultado</h2>
+    <div class="formula" id="formulaDisp"></div>
+    <div class="irow"><span class="il">Volumen</span><span class="iv big" id="volDisp">—</span></div>
+    <div class="irow"><span class="il">En términos de π</span><span class="iv" id="volPi">—</span></div>
+    <hr class="sep">
+    <div class="irow"><span class="il" id="rLabel2">R(x) =</span><span class="iv" id="rDisp">—</span></div>
+    <div class="irow" id="rInnerRow"><span class="il" id="rInnerLabel">r(x) =</span><span class="iv" id="rInnerDisp">—</span></div>
+    <div class="irow"><span class="il">Área sección</span><span class="iv" id="areaDisp">—</span></div>
+    <hr class="sep">
+    <div class="legend">
+      <div class="leg"><div class="dot dot-blue"></div>R exterior</div>
+      <div class="leg" id="legInner"><div class="dot dot-orange"></div>r interior</div>
+      <div class="leg"><div class="dot dot-gold"></div>Sección</div>
+      <div class="leg"><div class="dot dot-red"></div>f(var)</div>
+    </div>
+  </div>
+
+  <div class="tips">
+    <b style="color:#a0aec0">Funciones válidas:</b><br>
+    <code>√(x)</code> <code>x^2</code> <code>sen(x)</code> <code>cos(x)</code>
+    <code>exp(x)</code> <code>log(x)</code> <code>abs(x)</code> <code>pi</code> <code>e</code>
+    <code>arcsen(x)</code> <code>arctan(x)</code>
+  </div>
+</div>
+
+<div id="cv">
+  <div id="xbar" class="hidden">
+    <span class="lbl" id="xbarLabel">Sección en x =</span>
+    <input type="range" id="xSlider" min="0" max="100" value="50" aria-label="Posición x de la sección">
+    <span class="xv" id="xDisp">—</span>
+    <span class="hint">← arrastra</span>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.167/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.167/examples/jsm/"}}
+</script>
+<script type="module" src="/static/main.js"></script>
+</body>
+</html>
