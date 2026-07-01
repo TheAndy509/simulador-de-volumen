@@ -31,6 +31,7 @@ def _normalize(expr: str) -> str:
     expr = expr.replace('√', 'sqrt')
     expr = re.sub(r'(\d)([a-zA-Z(])', r'\1*\2', expr)
     expr = re.sub(r'(\))(\d)', r'\1*\2', expr)
+    expr = re.sub(r'(\))([a-zA-Z(])', r'\1*\2', expr)  # (1/8)x → (1/8)*x
     return expr
 
 
@@ -57,7 +58,8 @@ def ev(fn, t):
 
 def calc_volume(fn, gn, a, b):
     if gn:
-        integrand = lambda t: ev(fn, t) ** 2 - ev(gn, t) ** 2
+        # Use abs so the formula works regardless of which function is larger
+        integrand = lambda t: abs(ev(fn, t) ** 2 - ev(gn, t) ** 2)
     else:
         integrand = lambda t: ev(fn, t) ** 2
     try:
@@ -69,7 +71,7 @@ def calc_volume(fn, gn, a, b):
             integrand(a + i * h) * (1 if i in (0, N) else 4 if i % 2 else 2)
             for i in range(N + 1)
         ) * h / 3
-    return abs(np.pi * raw)
+    return np.pi * raw
 
 
 @app.route('/')
@@ -96,8 +98,16 @@ def calc():
 
         # 300 sample points for geometry + marker interpolation
         xs = np.linspace(a, b, 300).tolist()
-        outer_r = [max(0.0, abs(ev(fn, xi))) for xi in xs]
-        inner_r = [max(0.0, abs(ev(gn, xi))) for xi in xs] if gn else None
+        f_vals = [abs(ev(fn, xi)) for xi in xs]
+        g_vals = [abs(ev(gn, xi)) for xi in xs] if gn else None
+
+        # Ensure outer_r >= inner_r at every point (swap if user entered them reversed)
+        if g_vals:
+            outer_r = [max(f, g) for f, g in zip(f_vals, g_vals)]
+            inner_r = [min(f, g) for f, g in zip(f_vals, g_vals)]
+        else:
+            outer_r = f_vals
+            inner_r = None
 
         vol = calc_volume(fn, gn, a, b)
 
