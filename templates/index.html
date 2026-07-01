@@ -35,11 +35,19 @@
     <h2>Funciones</h2>
     <div class="field">
       <label id="fLabel">R(x) = f(x) — radio exterior</label>
-      <input type="text" id="fIn" value="sqrt(x)" aria-label="Radio exterior f(x)">
+      <div class="fn-input-row">
+        <input type="text" id="fIn" value="sqrt(x)" aria-label="Radio exterior f(x)">
+        <button type="button" class="fn-arrow" data-target="fIn" aria-label="Insertar función" aria-haspopup="listbox">▾</button>
+        <div class="fn-menu hidden" data-for="fIn" role="listbox"></div>
+      </div>
     </div>
     <div class="field" id="gRow">
       <label id="gLabel">r(x) = g(x) — radio interior</label>
-      <input type="text" id="gIn" value="x/2" aria-label="Radio interior g(x)">
+      <div class="fn-input-row">
+        <input type="text" id="gIn" value="x/2" aria-label="Radio interior g(x)">
+        <button type="button" class="fn-arrow" data-target="gIn" aria-label="Insertar función" aria-haspopup="listbox">▾</button>
+        <div class="fn-menu hidden" data-for="gIn" role="listbox"></div>
+      </div>
     </div>
   </div>
 

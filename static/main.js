@@ -348,3 +348,65 @@ function showErr(msg) {
   el.textContent = msg;
   el.classList.remove('hidden');
 }
+
+// ─── Function picker dropdown ──────────────────────────────────────────────
+const FN_LIST = [
+  { code: '√(x)',     insert: '√(x)',     desc: 'raíz cuadrada' },
+  { code: 'x^2',       insert: 'x^2',      desc: 'potencia / cuadrado' },
+  { code: 'sen(x)',    insert: 'sen(x)',   desc: 'seno' },
+  { code: 'cos(x)',    insert: 'cos(x)',   desc: 'coseno' },
+  { code: 'tan(x)',    insert: 'tan(x)',   desc: 'tangente' },
+  { code: 'arcsen(x)', insert: 'arcsen(x)',desc: 'arco seno' },
+  { code: 'arccos(x)', insert: 'arccos(x)',desc: 'arco coseno' },
+  { code: 'arctan(x)', insert: 'arctan(x)',desc: 'arco tangente' },
+  { code: 'sinh(x)',   insert: 'sinh(x)',  desc: 'seno hiperbólico' },
+  { code: 'cosh(x)',   insert: 'cosh(x)',  desc: 'coseno hiperbólico' },
+  { code: 'tanh(x)',   insert: 'tanh(x)',  desc: 'tangente hiperbólica' },
+  { code: 'exp(x)',    insert: 'exp(x)',   desc: 'exponencial eˣ' },
+  { code: 'log(x)',    insert: 'log(x)',   desc: 'logaritmo natural' },
+  { code: 'abs(x)',    insert: 'abs(x)',   desc: 'valor absoluto' },
+  { code: 'pi',        insert: 'pi',       desc: 'π' },
+  { code: 'e',         insert: 'e',        desc: 'número de Euler' },
+];
+
+function insertAtCursor(input, text) {
+  const start = input.selectionStart ?? input.value.length;
+  const end   = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + text + input.value.slice(end);
+  const pos = start + text.length;
+  input.focus();
+  input.setSelectionRange(pos, pos);
+}
+
+document.querySelectorAll('.fn-menu').forEach(menu => {
+  menu.innerHTML = FN_LIST.map(fn =>
+    `<div class="fn-item" data-insert="${fn.insert}"><span class="fn-code">${fn.code}</span><span class="fn-desc">${fn.desc}</span></div>`
+  ).join('');
+});
+
+function closeAllFnMenus() {
+  document.querySelectorAll('.fn-menu').forEach(m => m.classList.add('hidden'));
+  document.querySelectorAll('.fn-arrow').forEach(a => a.classList.remove('active'));
+}
+
+document.querySelectorAll('.fn-arrow').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const menu = document.querySelector(`.fn-menu[data-for="${btn.dataset.target}"]`);
+    const isOpen = !menu.classList.contains('hidden');
+    closeAllFnMenus();
+    if (!isOpen) { menu.classList.remove('hidden'); btn.classList.add('active'); }
+  });
+});
+
+document.querySelectorAll('.fn-menu').forEach(menu => {
+  menu.addEventListener('click', e => {
+    const item = e.target.closest('.fn-item');
+    if (!item) return;
+    const input = document.getElementById(menu.dataset.for);
+    insertAtCursor(input, item.dataset.insert);
+    closeAllFnMenus();
+  });
+});
+
+document.addEventListener('click', closeAllFnMenus);
