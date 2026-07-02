@@ -1,4 +1,6 @@
+import os
 import re
+from html import escape
 from flask import Flask, request, jsonify, render_template
 import numpy as np
 from scipy.integrate import quad
@@ -85,6 +87,8 @@ def calc():
     try:
         method = d.get('method', 'disk')
         axis   = d.get('axis', 'x')
+        if axis not in ('x', 'y'):
+            axis = 'x'
         a, b   = float(d['a']), float(d['b'])
         n      = max(2, min(100, int(d.get('n', 20))))
         f_str  = d['f'].strip()
@@ -115,12 +119,12 @@ def calc():
             formula = (f"V = π ∫<sub>{a}</sub><sup>{b}</sup>"
                        f" [f({axis})]² − [g({axis})]²  d{axis}"
                        f"<br><small style='color:#a0aec0'>"
-                       f"f({axis}) = {_pretty(f_str)} &nbsp;·&nbsp; g({axis}) = {_pretty(g_str)}"
+                       f"f({axis}) = {escape(_pretty(f_str))} &nbsp;·&nbsp; g({axis}) = {escape(_pretty(g_str))}"
                        f"</small>")
         else:
             formula = (f"V = π ∫<sub>{a}</sub><sup>{b}</sup>"
                        f" [f({axis})]²  d{axis}"
-                       f"<br><small style='color:#a0aec0'>f({axis}) = {_pretty(f_str)}</small>")
+                       f"<br><small style='color:#a0aec0'>f({axis}) = {escape(_pretty(f_str))}</small>")
 
         return jsonify({
             'volume':    float(vol),
@@ -138,4 +142,4 @@ def calc():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5050)
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1', port=5050)
