@@ -120,5 +120,5 @@ Pendiente: la entrada de funciones se procesa con `sympify` de SymPy, que intern
 
 ## Autor
 
-**Andy** — estudiante de la Universidad Tecnológica de Panamá
+**Anndré** — estudiante de la Universidad Tecnológica de Panamá
 GitHub: [@TheAndy509](https://github.com/TheAndy509)
