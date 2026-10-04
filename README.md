@@ -112,7 +112,8 @@ Cambios aplicados tras revisar el código:
 - El eje de rotación recibido del cliente se valida (`x` o `y`).
 - Three.js está incluido en `static/vendor`, así que la app funciona sin conexión y no depende de un CDN externo.
 
-Pendiente: la entrada de funciones se procesa con `sympify` de SymPy, que internamente usa `eval`. Es aceptable en una app local de un solo usuario, pero **no debe exponerse en un servidor público** tal como está.
+- La entrada de funciones se valida antes de pasarla a `sympify` (que internamente usa `eval`): solo se aceptan números, operadores, paréntesis, las funciones permitidas y variables de una letra. Antes de este cambio, una expresión como `__import__("os")...` ejecutaba código Python en el servidor.
+- Los números se convierten a decimales antes de evaluar, para que una potencia enorme como `9**9**9` no congele el servidor.
 
 ## Limitaciones conocidas
 
