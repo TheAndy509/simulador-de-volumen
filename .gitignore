@@ -4,3 +4,4 @@ build/
 dist/
 .claude/
 !static/vendor/three/build/
+venv/
