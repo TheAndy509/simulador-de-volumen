@@ -4,7 +4,7 @@ from html import escape
 from flask import Flask, request, jsonify, render_template
 import numpy as np
 from scipy.integrate import quad
-from sympy import sympify, lambdify, symbols, sqrt, sin, cos, tan, exp, log, Abs, pi, E, asin, acos, atan, sinh, cosh, tanh
+from sympy import sympify, lambdify, symbols, Float, Rational, sqrt, sin, cos, tan, exp, log, Abs, pi, E, asin, acos, atan, sinh, cosh, tanh
 
 app = Flask(__name__)
 
@@ -44,9 +44,38 @@ def _pretty(expr: str) -> str:
     return s
 
 
+# ─── Validación de la entrada ───────────────────────────────────────────────
+# sympify() usa eval() internamente, así que antes de llamarlo se comprueba que
+# la expresión solo contenga números, operadores, paréntesis, funciones
+# permitidas y variables de una letra. Sin «_», «.», comillas ni corchetes no
+# hay forma de acceder a atributos ni de importar módulos.
+_TOKEN_RE = re.compile(r'\s*(?:(\d+\.?\d*|\.\d+)|([A-Za-z]+)|(\*\*|[+\-*/()]))')
+_MAX_LEN = 200
+
+
+def _validate(expr: str) -> None:
+    if len(expr) > _MAX_LEN:
+        raise ValueError(f'La expresión es demasiado larga (máximo {_MAX_LEN} caracteres)')
+    pos = 0
+    while pos < len(expr):
+        if expr[pos:].strip() == '':
+            break
+        m = _TOKEN_RE.match(expr, pos)
+        if not m:
+            raise ValueError(f'Carácter no permitido: «{expr[pos]}»')
+        name = m.group(2)
+        if name and name not in _LOCALS and not re.fullmatch(r'[a-z]', name):
+            raise ValueError(f'Nombre no permitido: «{name}»')
+        pos = m.end()
+
+
 def parse_fn(expr: str):
     expr = _normalize(expr)
-    sym = sympify(expr, locals=_LOCALS)
+    _validate(expr)
+    # evaluate=False + números como Float: evita que algo como 9**9**9 se
+    # calcule como entero exacto y congele el servidor; con floats da inf.
+    sym = sympify(expr, locals=_LOCALS, evaluate=False)
+    sym = sym.xreplace({n: Float(n) for n in sym.atoms(Rational)})
     free = sym.free_symbols
     if len(free) > 1:
         names = ', '.join(sorted(str(s) for s in free))

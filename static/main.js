@@ -81,8 +81,13 @@ function disposeGroup(grp) {
 function interpR(xs, rs, t) {
   if (!xs || !rs || rs.length === 0) return 0;
   const n = xs.length;
-  const i = Math.max(0, Math.min(n-1, Math.round((t - xs[0]) / (xs[n-1] - xs[0]) * (n-1))));
-  return rs[i] ?? 0;
+  if (t <= xs[0]) return rs[0];
+  if (t >= xs[n - 1]) return rs[n - 1];
+  // Interpolación lineal entre los dos puntos muestreados más cercanos
+  const pos  = (t - xs[0]) / (xs[n - 1] - xs[0]) * (n - 1);
+  const i    = Math.floor(pos);
+  const frac = pos - i;
+  return rs[i] + (rs[i + 1] - rs[i]) * frac;
 }
 
 // ─── Geometry ─────────────────────────────────────────────────────────────────
