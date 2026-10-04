@@ -34,6 +34,8 @@ El backend normaliza la expresión (superíndices, `^`, funciones en español, m
 
 Si el usuario escribe las funciones al revés, el radio exterior y el interior se ordenan automáticamente en cada punto.
 
+Los detalles de las matemáticas, la API y las decisiones de seguridad están en la [documentación técnica](docs/tecnico.md).
+
 ### Ejemplos para comprobar el resultado
 
 | Método | Funciones | Intervalo | Volumen esperado |
