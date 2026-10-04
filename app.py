@@ -47,7 +47,15 @@ def _pretty(expr: str) -> str:
 def parse_fn(expr: str):
     expr = _normalize(expr)
     sym = sympify(expr, locals=_LOCALS)
-    return lambdify(_x, sym, modules='numpy')
+    free = sym.free_symbols
+    if len(free) > 1:
+        names = ', '.join(sorted(str(s) for s in free))
+        raise ValueError(f'La expresión debe tener una sola variable (se encontraron: {names})')
+    # Accept whichever variable letter the user actually typed (x, y, t, ...)
+    # instead of forcing "x" — the UI asks for f(y) when the axis is y, so the
+    # parser must bind to that symbol rather than silently evaluating to 0.
+    var = free.pop() if free else _x
+    return lambdify(var, sym, modules='numpy')
 
 
 def ev(fn, t):
