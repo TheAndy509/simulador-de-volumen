@@ -67,6 +67,10 @@ new ResizeObserver(resize).observe(wrap);
 })();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+/**
+ * Vacía un grupo de Three.js y libera la memoria de GPU de sus geometrías
+ * y materiales. Sin esto, cada recálculo dejaría mallas huérfanas en la GPU.
+ */
 function disposeGroup(grp) {
   grp.traverse(obj => {
     if (obj.geometry) obj.geometry.dispose();
@@ -78,6 +82,11 @@ function disposeGroup(grp) {
   while (grp.children.length) grp.remove(grp.children[0]);
 }
 
+/**
+ * Devuelve el radio en la posición t a partir de los radios muestreados
+ * por el backend (rs[i] corresponde a xs[i]). Fuera del intervalo devuelve
+ * el radio del extremo más cercano.
+ */
 function interpR(xs, rs, t) {
   if (!xs || !rs || rs.length === 0) return 0;
   const n = xs.length;
@@ -91,6 +100,12 @@ function interpR(xs, rs, t) {
 }
 
 // ─── Geometry ─────────────────────────────────────────────────────────────────
+/**
+ * Construye la superficie de revolución: cada punto (t, r) de la curva se
+ * gira 360° alrededor del eje en rSeg pasos, y los anillos consecutivos se
+ * unen con triángulos. Las normales apuntan hacia fuera del eje para que la
+ * iluminación se vea correcta.
+ */
 function buildRevSurface(xs, rs, axis, rSeg = 60) {
   const aSeg = xs.length - 1;
   const pos = [], nor = [], idx = [];
@@ -116,6 +131,10 @@ function buildRevSurface(xs, rs, axis, rSeg = 60) {
   return g;
 }
 
+/**
+ * Tapa plana (disco o corona circular) en la posición pos del eje.
+ * flip invierte la orientación para la tapa del extremo opuesto.
+ */
 function buildCap(outerR, innerR, pos, axis, flip) {
   const g = new THREE.RingGeometry(Math.max(0, innerR), Math.max(0.001, outerR), 60);
   if (axis === 'x') { g.rotateY(flip ? -Math.PI/2 : Math.PI/2); g.translate(pos,0,0); }
@@ -123,6 +142,10 @@ function buildCap(outerR, innerR, pos, axis, flip) {
   return g;
 }
 
+/**
+ * Asigna un color por vértice a toda la geometría. Permite fusionar discos
+ * de distintos colores en una sola malla sin perder el color de cada uno.
+ */
 function colorize(geo, hex) {
   const c = new THREE.Color(hex);
   const n = geo.attributes.position.count;
@@ -166,6 +189,7 @@ function buildDiskGeometries(pos, R, r, thick, axis, color, segs) {
   return out;
 }
 
+/** Dibuja la curva y = f(x) (o x = f(y)) en el plano, antes de rotarla. */
 function buildCurve(xs, ys, axis, color) {
   const pts = xs.map((t, i) => axis === 'x' ? new THREE.Vector3(t,ys[i],0) : new THREE.Vector3(ys[i],t,0));
   return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color }));
@@ -188,6 +212,11 @@ function buildScene() {
   }
 }
 
+/**
+ * Construye las capas visibles según las casillas de la interfaz: sólido
+ * suave, discos o anillos (fusionados en pocas mallas para mantener el
+ * framerate) y curvas. Al final actualiza el marcador de la sección.
+ */
 function buildSceneInner() {
   const { xs, outer_r, inner_r, axis, a, b } = S;
 
@@ -239,6 +268,10 @@ function buildSceneInner() {
 }
 
 // ─── Marker ───────────────────────────────────────────────────────────────────
+/**
+ * Dibuja la sección transversal en la posición del deslizador y actualiza
+ * en el panel los radios y el área: A = π (R² − r²).
+ */
 function updateMarker() {
   if (!S) return;
   disposeGroup(markerGrp);
@@ -271,6 +304,11 @@ function updateMarker() {
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
+/**
+ * Lee el formulario, envía los datos a POST /api/calc y, si la respuesta es
+ * correcta, guarda el resultado en S, reconstruye la escena, muestra el
+ * volumen y centra la cámara en el sólido.
+ */
 async function calculate() {
   document.getElementById('errMsg').classList.add('hidden');
   const goBtn = document.getElementById('go');

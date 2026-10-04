@@ -1,3 +1,14 @@
+"""
+Simulador 3D de Volumen de Revolución — backend.
+
+Servidor Flask que recibe una o dos funciones escritas por el usuario, las
+convierte en funciones numéricas, calcula el volumen del sólido de revolución
+(método de disco o de anillo) y devuelve los radios muestreados para que el
+frontend (Three.js) construya la geometría 3D.
+
+Ejecución directa:  python app.py  →  http://127.0.0.1:5050
+Modo depuración:    FLASK_DEBUG=1 python app.py
+"""
 import os
 import re
 from html import escape
@@ -8,7 +19,11 @@ from sympy import sympify, lambdify, symbols, Float, Rational, sqrt, sin, cos, t
 
 app = Flask(__name__)
 
+# ─── Configuración del parser ───────────────────────────────────────────────
+# Variable por defecto cuando la expresión es constante (p. ej. "3").
 _x = symbols('x')
+# Nombres que el usuario puede escribir y el objeto de SymPy al que apuntan.
+# Esta lista también es la lista blanca que usa _validate().
 _LOCALS = {
     'sqrt': sqrt, 'sin': sin, 'cos': cos, 'tan': tan,
     'arcsin': asin, 'arccos': acos, 'arctan': atan,
@@ -19,12 +34,22 @@ _LOCALS = {
 }
 
 
+# Superíndices Unicode que se traducen a potencias (x² → x**2).
 _SUPERSCRIPTS = {
     '⁰':'**0','¹':'**1','²':'**2','³':'**3','⁴':'**4',
     '⁵':'**5','⁶':'**6','⁷':'**7','⁸':'**8','⁹':'**9',
 }
 
+# ─── Normalización y presentación ───────────────────────────────────────────
 def _normalize(expr: str) -> str:
+    """Convierte la notación que escribe el usuario a sintaxis de SymPy.
+
+    Traduce superíndices y ``^`` a ``**``, las funciones en español
+    (``sen``, ``arcsen``) a sus nombres en inglés, ``√`` a ``sqrt`` y agrega
+    la multiplicación implícita: ``2x`` → ``2*x``, ``(1/8)x`` → ``(1/8)*x``.
+
+    Ejemplo: ``"2x² + sen(x)"`` → ``"2*x**2 + sin(x)"``.
+    """
     for ch, rep in _SUPERSCRIPTS.items():
         expr = expr.replace(ch, rep)
     expr = expr.replace('^', '**')
@@ -38,6 +63,12 @@ def _normalize(expr: str) -> str:
 
 
 def _pretty(expr: str) -> str:
+    """Hace lo inverso de :func:`_normalize` para mostrar la función en la UI.
+
+    Solo cambia la presentación (``sqrt`` → ``√``, ``sin`` → ``sen``,
+    ``**`` → ``^``). El resultado se escapa con ``html.escape`` antes de
+    insertarlo en el HTML de la fórmula.
+    """
     s = expr.replace('sqrt(', '√(').replace('sqrt ', '√')
     s = s.replace('sin(', 'sen(')
     s = s.replace('**', '^')
@@ -54,6 +85,17 @@ _MAX_LEN = 200
 
 
 def _validate(expr: str) -> None:
+    """Rechaza cualquier expresión que no sea una fórmula matemática simple.
+
+    Recorre la expresión ya normalizada token por token. Solo se aceptan
+    números, los operadores ``+ - * / **``, paréntesis, los nombres de
+    ``_LOCALS`` y variables de una sola letra minúscula.
+
+    Raises:
+        ValueError: si la expresión supera ``_MAX_LEN`` caracteres o contiene
+            un carácter o nombre no permitido. El mensaje se muestra tal cual
+            al usuario.
+    """
     if len(expr) > _MAX_LEN:
         raise ValueError(f'La expresión es demasiado larga (máximo {_MAX_LEN} caracteres)')
     pos = 0
@@ -70,6 +112,23 @@ def _validate(expr: str) -> None:
 
 
 def parse_fn(expr: str):
+    """Convierte el texto del usuario en una función numérica de una variable.
+
+    Pasos: normaliza la notación, valida la expresión, la interpreta con
+    SymPy y la compila con ``lambdify`` a una función de NumPy. La variable
+    puede ser cualquier letra (``x``, ``y``, ``t``…), porque la interfaz pide
+    ``f(y)`` cuando se rota alrededor del eje Y.
+
+    Args:
+        expr: la función tal como la escribió el usuario, p. ej. ``"√(x)"``.
+
+    Returns:
+        Una función ``f(t) -> float`` evaluable con números o arrays de NumPy.
+
+    Raises:
+        ValueError: si la validación falla o la expresión tiene más de una
+            variable.
+    """
     expr = _normalize(expr)
     _validate(expr)
     # evaluate=False + números como Float: evita que algo como 9**9**9 se
@@ -87,7 +146,15 @@ def parse_fn(expr: str):
     return lambdify(var, sym, modules='numpy')
 
 
+# ─── Cálculo numérico ───────────────────────────────────────────────────────
 def ev(fn, t):
+    """Evalúa ``fn(t)`` de forma segura.
+
+    Devuelve ``0.0`` si la función no está definida en ``t`` (por ejemplo
+    ``log(0)`` o ``sqrt`` de un negativo), si el resultado es infinito o NaN,
+    o si se desborda. Así un punto problemático no rompe ni el muestreo ni
+    la integral.
+    """
     try:
         v = float(fn(t))
         return v if np.isfinite(v) else 0.0
@@ -96,6 +163,24 @@ def ev(fn, t):
 
 
 def calc_volume(fn, gn, a, b):
+    """Calcula el volumen del sólido de revolución en el intervalo [a, b].
+
+    - Disco (``gn`` es ``None``):  V = π ∫ f(t)² dt
+    - Anillo:                      V = π ∫ |f(t)² − g(t)²| dt
+
+    El valor absoluto en el anillo hace que no importe cuál de las dos
+    funciones escribió el usuario como radio exterior. La integral se calcula
+    con ``scipy.integrate.quad``; si falla, se usa la regla de Simpson con
+    2000 subintervalos como respaldo.
+
+    Args:
+        fn: función del radio exterior (o único radio).
+        gn: función del radio interior, o ``None`` para el método de disco.
+        a, b: extremos del intervalo, con ``a < b``.
+
+    Returns:
+        El volumen como ``float`` (ya multiplicado por π).
+    """
     if gn:
         # Use abs so the formula works regardless of which function is larger
         integrand = lambda t: abs(ev(fn, t) ** 2 - ev(gn, t) ** 2)
@@ -113,13 +198,29 @@ def calc_volume(fn, gn, a, b):
     return np.pi * raw
 
 
+# ─── Rutas ───────────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
+    """Sirve la interfaz (``templates/index.html``)."""
     return render_template('index.html')
 
 
 @app.route('/api/calc', methods=['POST'])
 def calc():
+    """Endpoint principal: calcula el volumen y los datos para la geometría.
+
+    Recibe un JSON con:
+        ``f``       función del radio exterior (obligatoria)
+        ``g``       función del radio interior (solo para ``method="washer"``)
+        ``a``, ``b`` extremos del intervalo, con ``a < b``
+        ``method``  ``"disk"`` o ``"washer"`` (por defecto ``"disk"``)
+        ``axis``    ``"x"`` o ``"y"`` (cualquier otro valor se trata como ``"x"``)
+
+    Devuelve el volumen (en decimal y dividido entre π), la fórmula en HTML y
+    300 puntos muestreados con sus radios exterior e interior, que el
+    frontend usa para dibujar el sólido. Ante cualquier error responde
+    ``400`` con ``{"error": mensaje}``.
+    """
     d = request.json
     try:
         method = d.get('method', 'disk')
