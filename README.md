@@ -1,5 +1,7 @@
 # Simulador 3D de Volumen de Revolución
 
+[![Tests](https://github.com/TheAndy509/simulador-de-volumen/actions/workflows/tests.yml/badge.svg)](https://github.com/TheAndy509/simulador-de-volumen/actions/workflows/tests.yml)
+
 Aplicación de escritorio para **visualizar y calcular volúmenes de sólidos de revolución** con el método de disco y el de anillo (arandela), alrededor del eje X o del eje Y. Escribes una función, eliges el intervalo y ves el sólido en 3D junto con el volumen calculado por integración numérica.
 
 Lo hice como apoyo para Cálculo: la fórmula se entiende mucho mejor cuando puedes girar el sólido y ver cómo se apilan los discos.
@@ -14,6 +16,7 @@ Lo hice como apoyo para Cálculo: la fórmula se entiende mucho mejor cuando pue
 - **Visualización 3D interactiva:** sólido suave, discos o anillos individuales (de 2 a 80), curvas f y g, y ejes. La cámara es orbital.
 - **Sección transversal móvil:** un deslizador recorre el intervalo y muestra el radio y el área de la sección en cada punto.
 - **Rendimiento:** las capas se generan como geometría hueca real y se fusionan en pocas mallas, así que el framerate se mantiene con muchos discos.
+- **Mensajes de error claros:** si la función está incompleta, le falta un paréntesis o tiene un nombre desconocido, el mensaje dice qué pasa y en qué campo (`En g(x): Falta cerrar un paréntesis`).
 - **Ejecutable para Windows** empaquetado con PyInstaller, que abre en una ventana nativa (pywebview) en lugar del navegador.
 
 ## Cómo funciona
@@ -54,6 +57,10 @@ En el último ejemplo las curvas se cortan justo en x = −1 y x = 2, y el simul
 **Frontend:** JavaScript (módulos ES), Three.js, HTML, CSS
 **Escritorio:** pywebview, PyInstaller
 
+## Descarga
+
+En Windows no hace falta instalar Python: descarga `SimuladorDeVolumen.exe` desde la [última versión](https://github.com/TheAndy509/simulador-de-volumen/releases/latest) y ábrelo.
+
 ## Instalación y uso
 
 ```sh
@@ -70,7 +77,7 @@ pip install -r requirements.txt
 python launcher.py
 ```
 
-Para generar el ejecutable:
+Para generar el ejecutable a mano:
 
 ```sh
 pyinstaller simulador.spec
@@ -90,6 +97,26 @@ python app.py
 
 Después abre `http://127.0.0.1:5050`.
 
+## Pruebas
+
+Las pruebas cubren los volúmenes de los ejemplos (y otros conocidos, como la esfera y el cono), el parser, los mensajes de error y los intentos de inyección de código:
+
+```sh
+pip install -r requirements-test.txt
+pytest
+```
+
+GitHub Actions las corre en cada push con Python 3.10, 3.12 y 3.13.
+
+## Publicar una versión
+
+Al subir un tag `v*`, GitHub Actions corre las pruebas en Windows, genera el `.exe` con PyInstaller y lo adjunta a un Release nuevo:
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## Estructura
 
 ```
@@ -98,6 +125,14 @@ simulador-de-volumen/
 ├── launcher.py       # Ventana de escritorio con pywebview
 ├── simulador.spec    # Configuración de PyInstaller
 ├── requirements.txt
+├── requirements-test.txt
+├── tests/
+│   └── test_app.py   # Pruebas con pytest
+├── docs/
+│   └── tecnico.md    # Matemáticas, API y seguridad
+├── .github/workflows/
+│   ├── tests.yml     # Corre las pruebas en cada push
+│   └── release.yml   # Genera el .exe y publica el Release
 ├── templates/
 │   └── index.html    # Interfaz
 └── static/

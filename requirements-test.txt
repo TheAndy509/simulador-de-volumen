@@ -1,0 +1,6 @@
+# Dependencias para correr las pruebas (sin las de la app de escritorio)
+flask
+numpy
+scipy
+sympy
+pytest

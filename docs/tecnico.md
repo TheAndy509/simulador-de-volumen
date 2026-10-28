@@ -91,10 +91,23 @@ El frontend y el backend se comunican con un único endpoint.
 **Respuesta con error (400):**
 
 ```json
-{ "error": "Carácter no permitido: «_»" }
+{ "error": "En g(x): Falta cerrar un paréntesis" }
 ```
 
-Se devuelve cuando a ≥ b, cuando la función no pasa la validación, cuando tiene más de una variable o cuando no se puede interpretar. El frontend muestra el mensaje tal cual.
+Los mensajes están escritos para el usuario, y el frontend los muestra tal cual. Cuando el problema está en una función, el mensaje empieza por el campo afectado (`En f(x):` o `En g(x):`):
+
+| Entrada | Mensaje |
+|---|---|
+| a ≥ b | El intervalo debe cumplir a < b |
+| `a` o `b` no numéricos, o infinitos | Los extremos a y b del intervalo deben ser números (finitos) |
+| función vacía | Escribe una función |
+| `2+`, `sen()` | La función está incompleta o mal escrita… |
+| `(x+1` / `x+1)` | Falta cerrar un paréntesis / Hay un «)» que no cierra ningún paréntesis |
+| `sin` sin argumento | Las funciones necesitan su argumento entre paréntesis… |
+| `x*y` | La expresión debe tener una sola variable… |
+| `_`, `.`, comillas, nombres desconocidos | Carácter no permitido / Nombre no permitido |
+
+Un error inesperado no expone detalles internos: se registra en el log del servidor y el usuario ve un mensaje genérico.
 
 ## 3. Seguridad
 
@@ -127,9 +140,11 @@ Es una **lista blanca**: en lugar de intentar adivinar todo lo peligroso, se def
 
 | Entrada | Antes | Después |
 |---|---|---|
-| `__import__("os").getcwd() and x` | Ejecutaba código en el servidor | Error 400: «Carácter no permitido: «_»» |
+| `__import__("os").getcwd() and x` | Ejecutaba código en el servidor | Error 400: «En f(x): Carácter no permitido: «_»» |
 | `9**9**9` | El servidor dejaba de responder | Responde al instante |
 | `sqrt(x)` y `x/2` en [0, 4] | 8π/3 | 8π/3 (sin cambios) |
+
+Estos casos, y otros intentos de inyección (`x.__class__`, `eval('1')`, `lambda: x`…), están en las pruebas automáticas (`tests/test_app.py`), así que una regresión en la validación haría fallar la CI.
 
 ### Otras medidas
 
@@ -141,9 +156,7 @@ Es una **lista blanca**: en lugar de intentar adivinar todo lo peligroso, se def
 
 ## 4. Limitaciones conocidas
 
-- Si la expresión tiene un error de sintaxis (por ejemplo `2+`), el mensaje que se muestra es el error técnico de SymPy, no uno pensado para el usuario.
-- Cuando hay un error, el panel sigue mostrando el resultado del cálculo anterior.
-- El campo `n` (número de discos) se envía al backend pero no se usa allí: el número de discos solo afecta a la visualización, nunca al cálculo del volumen.
+- El campo `n` (número de discos) se envía al backend pero se ignora: el número de discos solo afecta a la visualización, nunca al cálculo del volumen.
 - El ejecutable solo se genera para Windows.
 
 ---
