@@ -386,10 +386,14 @@ document.getElementById('nSlider').addEventListener('input', e => {
 document.getElementById('chkAxes').addEventListener('change', e => { grid.visible = axGrp.visible = e.target.checked; });
 document.getElementById('xSlider').addEventListener('input', updateMarker);
 
+// Oculta el resultado anterior para que no parezca que corresponde a la
+// entrada que acaba de fallar.
 function showErr(msg) {
   const el = document.getElementById('errMsg');
   el.textContent = msg;
   el.classList.remove('hidden');
+  document.getElementById('info').classList.add('hidden');
+  document.getElementById('xbar').classList.add('hidden');
 }
 
 // ─── Function picker dropdown ──────────────────────────────────────────────

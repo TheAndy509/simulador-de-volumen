@@ -1,0 +1,33 @@
+# Genera el .exe de Windows con PyInstaller.
+# - Al subir un tag vX.Y.Z crea un Release de GitHub con el .exe adjunto.
+# - Desde la pestaña Actions ("Run workflow") solo genera el .exe como artefacto.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - run: pytest
+      - run: pyinstaller simulador.spec
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimuladorDeVolumen
+          path: dist/SimuladorDeVolumen.exe
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SimuladorDeVolumen.exe
+          generate_release_notes: true

@@ -15,7 +15,7 @@ from html import escape
 from flask import Flask, request, jsonify, render_template
 import numpy as np
 from scipy.integrate import quad
-from sympy import sympify, lambdify, symbols, Float, Rational, sqrt, sin, cos, tan, exp, log, Abs, pi, E, asin, acos, atan, sinh, cosh, tanh
+from sympy import Expr, SympifyError, sympify, lambdify, symbols, Float, Rational, sqrt, sin, cos, tan, exp, log, Abs, pi, E, asin, acos, atan, sinh, cosh, tanh
 
 app = Flask(__name__)
 
@@ -92,9 +92,9 @@ def _validate(expr: str) -> None:
     ``_LOCALS`` y variables de una sola letra minúscula.
 
     Raises:
-        ValueError: si la expresión supera ``_MAX_LEN`` caracteres o contiene
-            un carácter o nombre no permitido. El mensaje se muestra tal cual
-            al usuario.
+        ValueError: si la expresión supera ``_MAX_LEN`` caracteres, contiene
+            un carácter o nombre no permitido o tiene los paréntesis
+            desbalanceados. El mensaje se muestra tal cual al usuario.
     """
     if len(expr) > _MAX_LEN:
         raise ValueError(f'La expresión es demasiado larga (máximo {_MAX_LEN} caracteres)')
@@ -109,6 +109,14 @@ def _validate(expr: str) -> None:
         if name and name not in _LOCALS and not re.fullmatch(r'[a-z]', name):
             raise ValueError(f'Nombre no permitido: «{name}»')
         pos = m.end()
+
+    depth = 0
+    for ch in expr:
+        depth += {'(': 1, ')': -1}.get(ch, 0)
+        if depth < 0:
+            raise ValueError('Hay un «)» que no cierra ningún paréntesis')
+    if depth > 0:
+        raise ValueError('Falta cerrar un paréntesis')
 
 
 def parse_fn(expr: str):
@@ -126,14 +134,28 @@ def parse_fn(expr: str):
         Una función ``f(t) -> float`` evaluable con números o arrays de NumPy.
 
     Raises:
-        ValueError: si la validación falla o la expresión tiene más de una
-            variable.
+        ValueError: si la expresión está vacía, no pasa la validación, está
+            incompleta (``"2+"``), usa una función sin argumento (``"sen"``)
+            o tiene más de una variable. El mensaje está pensado para el
+            usuario.
     """
+    if not expr.strip():
+        raise ValueError('Escribe una función')
     expr = _normalize(expr)
     _validate(expr)
     # evaluate=False + números como Float: evita que algo como 9**9**9 se
     # calcule como entero exacto y congele el servidor; con floats da inf.
-    sym = sympify(expr, locals=_LOCALS, evaluate=False)
+    try:
+        sym = sympify(expr, locals=_LOCALS, evaluate=False)
+    except (SympifyError, SyntaxError, TypeError):
+        raise ValueError('La función está incompleta o mal escrita. '
+                         'Revisa que no falte un número o una variable '
+                         '(por ejemplo «2+» o «sen()»).') from None
+    # «sen» sin paréntesis se interpreta como la función en sí, no como un
+    # valor numérico.
+    if not isinstance(sym, Expr):
+        raise ValueError('Las funciones necesitan su argumento entre '
+                         'paréntesis, por ejemplo «sen(x)»')
     sym = sym.xreplace({n: Float(n) for n in sym.atoms(Rational)})
     free = sym.free_symbols
     if len(free) > 1:
@@ -198,6 +220,18 @@ def calc_volume(fn, gn, a, b):
     return np.pi * raw
 
 
+def _parse_labeled(expr: str, label: str):
+    """Llama a :func:`parse_fn` y antepone a qué campo se refiere el error.
+
+    Con dos funciones en pantalla, «Falta cerrar un paréntesis» no dice cuál
+    de las dos tiene el problema; «En g(x): …» sí.
+    """
+    try:
+        return parse_fn(expr)
+    except ValueError as e:
+        raise ValueError(f'En {label}: {e}') from None
+
+
 # ─── Rutas ───────────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
@@ -218,25 +252,32 @@ def calc():
 
     Devuelve el volumen (en decimal y dividido entre π), la fórmula en HTML y
     300 puntos muestreados con sus radios exterior e interior, que el
-    frontend usa para dibujar el sólido. Ante cualquier error responde
-    ``400`` con ``{"error": mensaje}``.
+    frontend usa para dibujar el sólido. Ante datos inválidos responde
+    ``400`` con ``{"error": mensaje}``; los errores inesperados se registran
+    en el log y el usuario recibe un mensaje genérico.
     """
-    d = request.json
+    d = request.get_json(silent=True)
+    if not isinstance(d, dict):
+        return jsonify({'error': 'La petición debe ser un JSON'}), 400
     try:
         method = d.get('method', 'disk')
         axis   = d.get('axis', 'x')
         if axis not in ('x', 'y'):
             axis = 'x'
-        a, b   = float(d['a']), float(d['b'])
-        n      = max(2, min(100, int(d.get('n', 20))))
-        f_str  = d['f'].strip()
-        g_str  = d.get('g', '').strip()
+        try:
+            a, b = float(d['a']), float(d['b'])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError('Los extremos a y b del intervalo deben ser números') from None
+        if not (np.isfinite(a) and np.isfinite(b)):
+            raise ValueError('Los extremos a y b del intervalo deben ser números finitos')
+        f_str  = str(d.get('f') or '').strip()
+        g_str  = str(d.get('g') or '').strip()
 
         if a >= b:
-            return jsonify({'error': 'Se requiere a < b'}), 400
+            raise ValueError('El intervalo debe cumplir a < b')
 
-        fn = parse_fn(f_str)
-        gn = parse_fn(g_str) if (method == 'washer' and g_str) else None
+        fn = _parse_labeled(f_str, f'f({axis})')
+        gn = _parse_labeled(g_str, f'g({axis})') if (method == 'washer' and g_str) else None
 
         # 300 sample points for geometry + marker interpolation
         xs = np.linspace(a, b, 300).tolist()
@@ -275,8 +316,12 @@ def calc():
             'inner_r': inner_r,
         })
 
-    except Exception as e:
+    except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception:
+        app.logger.exception('Error inesperado en /api/calc')
+        return jsonify({'error': 'No se pudo calcular el volumen con esos datos. '
+                                 'Revisa las funciones y el intervalo.'}), 400
 
 
 if __name__ == '__main__':
