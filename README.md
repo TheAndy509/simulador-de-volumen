@@ -61,6 +61,8 @@ En el último ejemplo las curvas se cortan justo en x = −1 y x = 2, y el simul
 
 En Windows no hace falta instalar Python: descarga `SimuladorDeVolumen.exe` desde la [última versión](https://github.com/TheAndy509/simulador-de-volumen/releases/latest) y ábrelo.
 
+La primera vez, Windows puede mostrar el aviso **"Windows protegió tu PC"** (SmartScreen). Aparece porque el `.exe` no tiene firma digital, no porque tenga algo malo. Para abrirlo, haz clic en **Más información** y luego en **Ejecutar de todas formas**. Si prefieres no hacerlo, puedes usar el simulador desde el código fuente, como se explica en [Instalación y uso](#instalación-y-uso).
+
 ## Instalación y uso
 
 ```sh
